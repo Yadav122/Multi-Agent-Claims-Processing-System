@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Plum Claims Console</title>
+<style>
+  :root {
+    --bg:#0f1221; --panel:#171a2e; --panel2:#1e2238; --ink:#e8eaf2; --muted:#9aa0bd;
+    --line:#2a2f4a; --accent:#6c5ce7; --green:#21c08b; --amber:#f0a92b; --red:#ef5b6b; --blue:#3aa0ff;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+         background:var(--bg); color:var(--ink); }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 22px;
+           background:linear-gradient(90deg,#1b1f38,#171a2e); border-bottom:1px solid var(--line); }
+  header h1 { font-size:17px; margin:0; letter-spacing:.3px; }
+  header h1 span { color:var(--accent); }
+  .badge { font-size:12px; padding:4px 10px; border-radius:20px; border:1px solid var(--line); color:var(--muted); }
+  .badge.on { color:var(--green); border-color:#1f5e4a; }
+  .badge.off { color:var(--amber); border-color:#5e4a1f; }
+  main { display:grid; grid-template-columns:380px 1fr; gap:18px; padding:18px 22px; max-width:1400px; margin:0 auto; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .panel h2 { font-size:13px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin:0 0 12px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; }
+  input,select,textarea { width:100%; background:var(--panel2); border:1px solid var(--line);
+        color:var(--ink); border-radius:8px; padding:8px 10px; font:13px monospace; }
+  textarea { min-height:150px; resize:vertical; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .check { display:flex; align-items:center; gap:8px; margin-top:12px; }
+  .check input { width:auto; }
+  button { width:100%; margin-top:14px; background:var(--accent); color:#fff; border:0; border-radius:8px;
+           padding:11px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:hover { filter:brightness(1.1); }
+  button.secondary { background:var(--panel2); border:1px solid var(--line); color:var(--ink); margin-top:8px; }
+  .empty { color:var(--muted); text-align:center; padding:60px 20px; }
+  .decision-head { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .pill { font-weight:700; font-size:15px; padding:6px 14px; border-radius:8px; }
+  .APPROVED { background:#10362b; color:var(--green); }
+  .PARTIAL  { background:#3a2f12; color:var(--amber); }
+  .REJECTED { background:#3a1820; color:var(--red); }
+  .MANUAL_REVIEW { background:#13283f; color:var(--blue); }
+  .HALTED { background:#2a2f4a; color:var(--muted); }
+  .amount { font-size:22px; font-weight:700; }
+  .conf { margin-left:auto; min-width:160px; }
+  .conf .bar { height:8px; background:var(--panel2); border-radius:6px; overflow:hidden; margin-top:4px; }
+  .conf .fill { height:100%; background:linear-gradient(90deg,var(--red),var(--amber),var(--green)); }
+  .msg { background:var(--panel2); border-left:3px solid var(--accent); padding:12px 14px; border-radius:6px; margin:14px 0; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .kv { font-size:13px; } .kv b { color:var(--muted); font-weight:500; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:6px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; }
+  .tag { font-size:11px; padding:2px 7px; border-radius:5px; }
+  .tag.ok { background:#10362b; color:var(--green); } .tag.no { background:#3a1820; color:var(--red); }
+  .sev-INFO{color:var(--muted);} .sev-WARNING{color:var(--amber);} .sev-BLOCKER{color:var(--red);}
+  .trace { font:12px/1.5 monospace; }
+  .trace .ev { display:grid; grid-template-columns:26px 150px 1fr; gap:8px; padding:6px 0; border-bottom:1px solid var(--line); }
+  .trace .seq { color:var(--muted); } .trace .comp { color:var(--accent); }
+  .llm { font-size:10px; background:var(--accent); color:#fff; padding:1px 5px; border-radius:4px; margin-left:6px; }
+  details { margin-top:14px; } summary { cursor:pointer; color:var(--muted); font-size:13px; }
+  .note { font-size:12px; color:var(--muted); padding:3px 0; }
+  .fail { color:var(--amber); font-size:12px; margin-top:8px; }
+  .sub { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>Plum</span> &nbsp;Claims Processing Console</h1>
+  <div id="status" class="badge">checking…</div>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Submit a Claim</h2>
+    <label>Load a sample test case</label>
+    <select id="sample"><option value="">— select —</option></select>
+
+    <div class="row">
+      <div><label>Member ID</label><input id="member_id" value="EMP001"></div>
+      <div><label>Policy ID</label><input id="policy_id" value="PLUM_GHI_2024"></div>
+    </div>
+    <div class="row">
+      <div><label>Category</label>
+        <select id="claim_category">
+          <option>CONSULTATION</option><option>DIAGNOSTIC</option><option>PHARMACY</option>
+          <option>DENTAL</option><option>VISION</option><option>ALTERNATIVE_MEDICINE</option>
+        </select>
+      </div>
+      <div><label>Treatment date</label><input id="treatment_date" value="2024-11-01"></div>
+    </div>
+    <div class="row">
+      <div><label>Claimed amount</label><input id="claimed_amount" type="number" value="1500"></div>
+      <div><label>YTD claims</label><input id="ytd_claims_amount" type="number" value="0"></div>
+    </div>
+    <label>Hospital name (optional)</label><input id="hospital_name" placeholder="e.g. Apollo Hospitals">
+    <label>Documents (JSON array)</label>
+    <textarea id="documents">[]</textarea>
+    <label>Claims history (JSON array, optional)</label>
+    <textarea id="claims_history" style="min-height:60px">[]</textarea>
+    <div class="check"><input type="checkbox" id="simulate_component_failure"><label style="margin:0">Simulate component failure</label></div>
+
+    <button id="submit">Process Claim</button>
+    <button id="raw" class="secondary">View raw JSON response</button>
+  </section>
+
+  <section class="panel" id="result">
+    <div class="empty">Submit a claim or load a sample case to see the decision and full trace.</div>
+  </section>
+</main>
+
+<script>
+let CASES = [];
+const $ = id => document.getElementById(id);
+
+async function boot() {
+  try {
+    const h = await (await fetch('/api/health')).json();
+    const s = $('status');
+    s.textContent = h.llm_enabled ? `LLM: ${h.model}` : 'LLM: deterministic fallback';
+    s.className = 'badge ' + (h.llm_enabled ? 'on' : 'off');
+  } catch { $('status').textContent = 'offline'; }
+
+  try {
+    const tc = await (await fetch('/api/test-cases')).json();
+    CASES = tc.test_cases || [];
+    const sel = $('sample');
+    CASES.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.case_id; o.textContent = `${c.case_id} — ${c.case_name}`;
+      sel.appendChild(o);
+    });
+  } catch {}
+}
+
+$('sample').onchange = e => {
+  const c = CASES.find(x => x.case_id === e.target.value);
+  if (!c) return;
+  const i = c.input;
+  $('member_id').value = i.member_id || '';
+  $('policy_id').value = i.policy_id || 'PLUM_GHI_2024';
+  $('claim_category').value = i.claim_category || 'CONSULTATION';
+  $('treatment_date').value = i.treatment_date || '';
+  $('claimed_amount').value = i.claimed_amount ?? 0;
+  $('ytd_claims_amount').value = i.ytd_claims_amount ?? 0;
+  $('hospital_name').value = i.hospital_name || '';
+  $('documents').value = JSON.stringify(i.documents || [], null, 2);
+  $('claims_history').value = JSON.stringify(i.claims_history || [], null, 2);
+  $('simulate_component_failure').checked = !!i.simulate_component_failure;
+};
+
+function buildPayload() {
+  return {
+    member_id: $('member_id').value,
+    policy_id: $('policy_id').value,
+    claim_category: $('claim_category').value,
+    treatment_date: $('treatment_date').value,
+    claimed_amount: parseFloat($('claimed_amount').value || 0),
+    ytd_claims_amount: parseFloat($('ytd_claims_amount').value || 0),
+    hospital_name: $('hospital_name').value || null,
+    simulate_component_failure: $('simulate_component_failure').checked,
+    documents: JSON.parse($('documents').value || '[]'),
+    claims_history: JSON.parse($('claims_history').value || '[]'),
+  };
+}
+
+let LAST = null;
+async function submit(rawOnly) {
+  let payload;
+  try { payload = buildPayload(); }
+  catch (e) { alert('Documents / history must be valid JSON: ' + e.message); return; }
+  $('result').innerHTML = '<div class="empty">Processing through the agent pipeline…</div>';
+  try {
+    LAST = await (await fetch('/api/claims', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    })).json();
+    rawOnly ? renderRaw(LAST) : render(LAST);
+  } catch (e) {
+    $('result').innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+$('submit').onclick = () => submit(false);
+$('raw').onclick = () => LAST ? renderRaw(LAST) : submit(true);
+
+function esc(s){ return (s??'').toString().replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function renderRaw(r){
+  $('result').innerHTML = `<h2>Raw Decision JSON</h2><pre class="trace" style="white-space:pre-wrap">${esc(JSON.stringify(r,null,2))}</pre>`;
+}
+
+function render(r) {
+  const decided = r.decision || 'HALTED';
+  const conf = Math.round((r.confidence_score||0)*100);
+  let html = `<div class="decision-head">
+      <span class="pill ${decided}">${decided.replace('_',' ')}</span>`;
+  if (r.decision && r.decision!=='REJECTED' && r.decision!=='MANUAL_REVIEW')
+    html += `<span class="amount">₹${(r.approved_amount||0).toLocaleString()}</span>`;
+  if (r.decision)
+    html += `<div class="conf"><span class="sub">confidence ${conf}%</span>
+       <div class="bar"><div class="fill" style="width:${conf}%"></div></div></div>`;
+  html += `</div>`;
+  html += `<div class="sub" style="margin-top:6px">Claim ${esc(r.claim_id)} · member ${esc(r.member_id)}`;
+  if (r.halted_stage) html += ` · halted at ${esc(r.halted_stage)}`;
+  html += `</div>`;
+
+  if (r.member_message) html += `<div class="msg">${esc(r.member_message)}</div>`;
+
+  if (r.rejection_reasons?.length)
+    html += `<div class="kv"><b>Rejection reasons:</b> ${r.rejection_reasons.map(esc).join(', ')}</div>`;
+  if (r.required_action)
+    html += `<div class="kv"><b>Required action:</b> <code>${esc(JSON.stringify(r.required_action))}</code></div>`;
+
+  if (r.component_failures?.length)
+    html += `<div class="fail">⚠ ${r.component_failures.length} component(s) failed & skipped: `
+          + r.component_failures.map(c=>esc(c.component)).join(', ') + ' (confidence reduced)</div>';
+
+  if (r.financial) {
+    const f = r.financial;
+    html += `<details open><summary>Financial breakdown</summary><table>
+      <tr><th>Step</th><th>Value</th></tr>
+      <tr><td>Eligible amount</td><td>₹${f.eligible_amount}</td></tr>
+      <tr><td>Network discount (${f.network_discount_percent}%)</td><td>−₹${f.network_discount_amount} → ₹${f.after_network_discount}</td></tr>
+      <tr><td>Co-pay (${f.copay_percent}%)</td><td>−₹${f.copay_amount}</td></tr>
+      <tr><td><b>Approved</b></td><td><b>₹${f.approved_amount}</b></td></tr>
+      </table></details>`;
+  }
+
+  if (r.line_items?.length) {
+    html += `<details open><summary>Line items</summary><table>
+      <tr><th>Description</th><th>Amount</th><th>Status</th><th>Reason</th></tr>`;
+    r.line_items.forEach(li => {
+      html += `<tr><td>${esc(li.description)}</td><td>₹${li.amount}</td>
+        <td><span class="tag ${li.covered?'ok':'no'}">${li.covered?'covered':'excluded'}</span></td>
+        <td class="sub">${esc(li.reason)}</td></tr>`;
+    });
+    html += `</table></details>`;
+  }
+
+  if (r.notes?.length)
+    html += `<details><summary>Notes (${r.notes.length})</summary>`
+          + r.notes.map(n=>`<div class="note">• ${esc(n)}</div>`).join('') + `</details>`;
+
+  if (r.findings?.length) {
+    html += `<details><summary>Adjudication findings (${r.findings.length})</summary><table>
+      <tr><th>Code</th><th>Component</th><th>Severity</th><th>Result</th></tr>`;
+    r.findings.forEach(f => {
+      html += `<tr><td>${esc(f.code)}</td><td>${esc(f.component)}</td>
+        <td class="sev-${f.severity}">${esc(f.severity)}</td>
+        <td><span class="tag ${f.passed?'ok':'no'}">${f.passed?'pass':'fail'}</span></td></tr>`;
+    });
+    html += `</table></details>`;
+  }
+
+  html += `<details open><summary>Decision trace (${r.trace?.length||0} steps) — full audit log</summary><div class="trace">`;
+  (r.trace||[]).forEach(ev => {
+    html += `<div class="ev"><span class="seq">${ev.seq}</span>
+      <span><span class="comp">${esc(ev.component)}</span><br><span class="sub">${esc(ev.stage)}</span></span>
+      <span class="sev-${ev.severity}">${esc(ev.message)}${ev.llm_used?'<span class="llm">LLM</span>':''}</span></div>`;
+  });
+  html += `</div></details>`;
+
+  $('result').innerHTML = html;
+}
+
+boot();
+</script>
+</body>
+</html>
