@@ -1,0 +1,20 @@
+# Render Blueprint - https://render.com/docs/blueprint-spec
+# Render reads this automatically when you create a service from the repo.
+services:
+  - type: web
+    name: plum-claims
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: GROQ_MODEL
+        value: "meta-llama/llama-4-scout-17b-16e-instruct"
+      - key: DISABLE_LLM
+        value: "false"
+      # Set this as a SECRET in the Render dashboard, not here.
+      - key: GROQ_API_KEY
+        sync: false
